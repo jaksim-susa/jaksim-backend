@@ -1,10 +1,35 @@
+from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi import FastAPI
 
-app = FastAPI(title="JAKSHIM SUSA API")
+from app.core.database import init_db
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()  # 서버 시작 시 DB 초기화
+    yield
+
+app = FastAPI(
+    title="JAKSHIM API",
+    description="JAKSHIM Backend API",
+    version="0.1.0",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 @app.get("/")
 async def root():
-    return {"message": "JAKSHIM SUSA API is running! 🚀"}
+    return RedirectResponse(url="/docs")
 
 @app.get("/health")
 async def health_check():
