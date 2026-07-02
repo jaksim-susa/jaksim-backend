@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 
 
@@ -17,3 +17,17 @@ class GoalCreateResponse(BaseModel):
     startDate: Optional[date] = None
     endDate: Optional[date] = None
     createdAt: str
+
+
+# 목표 조회 Response
+class GoalResponse(BaseModel):
+    goalId: str
+    title: str
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    isActive: bool
+    createdAt: str
+
+
+class GoalListResponse(BaseModel):
+    goals: List[GoalResponse]

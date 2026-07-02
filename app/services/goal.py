@@ -1,7 +1,7 @@
 from datetime import date
 from beanie import PydanticObjectId
 from app.models.goal import Goal
-from app.schemas.goal import GoalCreateRequest, GoalCreateResponse
+from app.schemas.goal import GoalCreateRequest, GoalCreateResponse, GoalListResponse, GoalResponse
 
 
 async def create_goal(user_id: str, request: GoalCreateRequest) -> GoalCreateResponse:
@@ -22,4 +22,40 @@ async def create_goal(user_id: str, request: GoalCreateRequest) -> GoalCreateRes
         startDate=new_goal.start_date,
         endDate=new_goal.end_date,
         createdAt=new_goal.created_at.isoformat(),
+    )
+
+
+def calculate_is_active(goal: Goal) -> bool:
+    today = date.today()
+
+    # 시작 날짜 없으면 생성일 기준
+    start = goal.start_date if goal.start_date else goal.created_at.date()
+
+    # 시작 전
+    if start > today:
+        return False
+
+    # end_date 없으면 무기한 진행중
+    if not goal.end_date:
+        return True
+
+    # end_date 있으면 비교
+    return goal.end_date >= today
+
+
+async def get_goals(user_id: str) -> GoalListResponse:
+    goals = await Goal.find(Goal.user_id == PydanticObjectId(user_id)).to_list()
+
+    return GoalListResponse(
+        goals=[
+            GoalResponse(
+                goalId=str(goal.id),
+                title=goal.title,
+                startDate=goal.start_date.isoformat() if goal.start_date else None,
+                endDate=goal.end_date.isoformat() if goal.end_date else None,
+                isActive=calculate_is_active(goal),
+                createdAt=goal.created_at.date().isoformat()
+            )
+            for goal in goals
+        ]
     )
