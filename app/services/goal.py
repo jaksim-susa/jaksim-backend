@@ -27,21 +27,24 @@ async def create_goal(user_id: str, request: GoalCreateRequest) -> GoalCreateRes
 
 
 def calculate_is_active(goal: Goal) -> bool:
-    today = date.today()
+    return calculate_is_active_on_date(goal, date.today())
 
+
+def calculate_is_active_on_date(goal: Goal, target_date: date) -> bool:
     # 시작 날짜 없으면 생성일 기준
     start = goal.start_date if goal.start_date else goal.created_at.date()
 
     # 시작 전
-    if start > today:
+    if start > target_date:
         return False
 
     # end_date 없으면 무기한 진행중
     if not goal.end_date:
         return True
 
-    # end_date 있으면 비교
-    return goal.end_date >= today
+    # end_date 있으면 해당 날짜랑 비교
+    end = goal.end_date if isinstance(goal.end_date, date) else goal.end_date.date()
+    return end >= target_date
 
 
 async def get_goals(user_id: str) -> GoalListResponse:

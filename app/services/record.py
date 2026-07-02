@@ -6,7 +6,7 @@ from app.models.record import Record
 from app.models.goal import Goal
 from app.schemas.diary import DiaryResponse
 from app.schemas.record import RecordCreateRequest, RecordCreateResponse, RecordListResponse, RecordResponse
-from app.services.goal import calculate_is_active
+from app.services.goal import calculate_is_active_on_date
 from app.utils.date import to_kst
 
 
@@ -74,7 +74,7 @@ async def classify_reason(reason_text: str) -> str:
 async def get_records(user_id: str, record_date: date) -> RecordListResponse:
     # 1. 활성 목표 전체 조회
     goals = await Goal.find(Goal.user_id == PydanticObjectId(user_id)).to_list()
-    active_goals = [g for g in goals if calculate_is_active(g)]
+    active_goals = [g for g in goals if calculate_is_active_on_date(g, record_date)]
 
     # 2. 해당 날짜 기록 조회
     records = await Record.find(
