@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi import FastAPI
 
-from app.api import auth, goal
+from app.api import auth, goal, record
 from app.core.database import init_db
 
 @asynccontextmanager
@@ -28,6 +28,8 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(goal.router, prefix="/api/goals", tags=["goals"])
+app.include_router(record.router, prefix="/api/records", tags=["records"])
+
 
 @app.get("/")
 async def root():

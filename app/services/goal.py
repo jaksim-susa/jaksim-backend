@@ -2,6 +2,7 @@ from datetime import date
 from beanie import PydanticObjectId
 from app.models.goal import Goal
 from app.schemas.goal import GoalCreateRequest, GoalCreateResponse, GoalListResponse, GoalResponse
+from app.utils.date import to_kst
 
 
 async def create_goal(user_id: str, request: GoalCreateRequest) -> GoalCreateResponse:
@@ -21,7 +22,7 @@ async def create_goal(user_id: str, request: GoalCreateRequest) -> GoalCreateRes
         title=new_goal.title,
         startDate=new_goal.start_date,
         endDate=new_goal.end_date,
-        createdAt=new_goal.created_at.isoformat(),
+        createdAt=to_kst(new_goal.created_at),
     )
 
 
@@ -54,8 +55,9 @@ async def get_goals(user_id: str) -> GoalListResponse:
                 startDate=goal.start_date.isoformat() if goal.start_date else None,
                 endDate=goal.end_date.isoformat() if goal.end_date else None,
                 isActive=calculate_is_active(goal),
-                createdAt=goal.created_at.date().isoformat()
+                createdAt=to_kst(goal.created_at),
             )
+
             for goal in goals
         ]
     )
