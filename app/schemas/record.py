@@ -36,3 +36,21 @@ class RecordResponse(BaseModel):
 class RecordListResponse(BaseModel):
     records: List[RecordResponse]
     diary: Optional[DiaryResponse] = None
+
+
+class RecordListGoalResponse(BaseModel):
+    goalId: str
+    recordId: Optional[str] = None
+    goal: str
+    status: Optional[str] = None
+    reasonCategory: Optional[str] = None
+
+
+class RecordListDayResponse(BaseModel):
+    date: date
+    diary: Optional[str] = None
+    goals: List[RecordListGoalResponse]
+
+
+class RecordAllListResponse(BaseModel):
+    records: List[RecordListDayResponse]
