@@ -1,5 +1,5 @@
 
-from fastapi import Response
+from fastapi import Request, Response
 from app.core.security import create_access_token, create_refresh_token
 from app.models.user import User
 from app.services.kakao import get_kakao_token, get_kakao_user
@@ -51,5 +51,23 @@ async def kakao_login(code: str, response: Response) -> dict:
         "nickname": nickname,
         "theme": target_user.theme or "system",
         "isNewUser": not is_returning_user,
-        "hasGoal": True  # goals 컬렉션 조회 결과
+        "hasGoal": True  # TODO goals 컬렉션 조회 결과로 수정 필요
     }
+
+
+async def logout(response: Response, request: Request) -> dict:
+    # TODO accessToken 검증 → 유효하지 않으면 401 반환 로직 추가
+    refresh_token = request.cookies.get("refreshToken")
+
+    if refresh_token:
+        await User.find_one(User.refresh_token == refresh_token).update(
+            {"$set": {User.refresh_token: None}}
+        )
+
+    response.delete_cookie(
+        key="refreshToken",
+        httponly=True,
+        secure=not settings.IS_LOCAL,
+        samesite="lax" if settings.IS_LOCAL else "none"
+    )
+    return {"message": "로그아웃 되었습니다."}
