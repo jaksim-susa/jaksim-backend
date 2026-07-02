@@ -1,9 +1,12 @@
 from datetime import datetime, timezone, date
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
+from app.models.diary import Diary
 from app.models.record import Record
 from app.models.goal import Goal
-from app.schemas.record import RecordCreateRequest, RecordCreateResponse
+from app.schemas.diary import DiaryResponse
+from app.schemas.record import RecordCreateRequest, RecordCreateResponse, RecordListResponse, RecordResponse
+from app.services.goal import calculate_is_active
 from app.utils.date import to_kst
 
 
@@ -38,7 +41,7 @@ async def create_record(user_id: str, request: RecordCreateRequest) -> RecordCre
     now_kst = to_kst(datetime.now(timezone.utc))
     day_of_week = now_kst.weekday()   # KST 기준 요일
     hour_logged = now_kst.hour        # KST 기준 시간
-    
+
     # 5. 기록 저장
     new_record = Record(
         user_id=PydanticObjectId(user_id),
@@ -66,3 +69,49 @@ async def create_record(user_id: str, request: RecordCreateRequest) -> RecordCre
 async def classify_reason(reason_text: str) -> str:
     # TODO제미나이 API 호출 (나중에 구현)
     return "미분류"
+
+
+async def get_records(user_id: str, record_date: date) -> RecordListResponse:
+    # 1. 활성 목표 전체 조회
+    goals = await Goal.find(Goal.user_id == PydanticObjectId(user_id)).to_list()
+    active_goals = [g for g in goals if calculate_is_active(g)]
+
+    # 2. 해당 날짜 기록 조회
+    records = await Record.find(
+        Record.user_id == PydanticObjectId(user_id),
+        Record.record_date == record_date
+    ).to_list()
+
+    # 3. 기록을 goal_id 기준으로 매핑
+    record_map = {str(r.goal_id): r for r in records}
+
+    # 4. 일기 조회
+    diary = await Diary.find_one(
+        Diary.user_id == PydanticObjectId(user_id),
+        Diary.diary_date == record_date
+    )
+
+    # 5. 목표별로 기록 여부 확인
+    result = []
+    for goal in active_goals:
+        record = record_map.get(str(goal.id))
+        result.append(
+            RecordResponse(
+                recordId=str(record.id) if record else None,
+                goalId=str(goal.id),
+                goal=goal.title,
+                status=record.status if record else None,
+                reasonCategory=record.reason_category if record else None,
+                reasonText=record.reason_text if record else None,
+                recordDate=record_date,
+            )
+        )
+
+    return RecordListResponse(
+        records=result,
+        diary=DiaryResponse(
+            diaryId=str(diary.id),
+            content=diary.content,
+            recordDate=diary.diary_date,
+        ) if diary else None
+    )

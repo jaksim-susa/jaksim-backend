@@ -4,17 +4,12 @@ from beanie import Document, PydanticObjectId
 from pydantic import Field
 
 
-class Record(Document):
+class Diary(Document):
     user_id: PydanticObjectId
-    goal_id: PydanticObjectId
-    record_date: date
-    status: str                          # success / fail
-    reason_text: Optional[str] = None
-    reason_category: Optional[str] = None
-    day_of_week: Optional[int] = None    # 0월 ~ 6일
-    hour_logged: Optional[int] = None    # 기록한 시간
+    diary_date: date
+    content: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
-        name = "records"
+        name = "diaries"

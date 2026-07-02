@@ -1,6 +1,8 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
+
+from app.schemas.diary import DiaryResponse
 
 
 # 기록 생성 Request
@@ -19,3 +21,18 @@ class RecordCreateResponse(BaseModel):
     reasonCategory: Optional[str] = None
     recordDate: date
     createdAt: datetime
+
+
+class RecordResponse(BaseModel):
+    recordId: Optional[str] = None    
+    goalId: str                           
+    goal: str
+    status: Optional[str] = None       
+    reasonCategory: Optional[str] = None
+    reasonText: Optional[str] = None
+    recordDate: date
+
+
+class RecordListResponse(BaseModel):
+    records: List[RecordResponse]
+    diary: Optional[DiaryResponse] = None

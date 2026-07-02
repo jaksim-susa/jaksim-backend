@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     KEY_VAULT_URL: str = ""
     JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = ""
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 300
     DOCUMENT_DB_CONNECTION_STRING: str = ""
     DOCUMENT_DATABASE_NAME: str = ""
     KAKAO_REST_API_KEY: str = ""

@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.models.user import User
 from app.models.goal import Goal
 from app.models.record import Record
+from app.models.diary import Diary
 
 async def init_db():
     client = AsyncIOMotorClient(settings.DOCUMENT_DB_CONNECTION_STRING)
@@ -12,6 +13,7 @@ async def init_db():
         document_models=[
             User,
             Goal,
-            Record
+            Record,
+            Diary
             ]
     )
