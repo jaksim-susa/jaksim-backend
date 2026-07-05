@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, date
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
+from app.core.config import settings
 from app.models.diary import Diary
 from app.models.record import Record
 from app.models.goal import Goal
@@ -8,7 +9,7 @@ from app.schemas.diary import DiaryResponse
 from app.schemas.record import RecordAllListResponse, RecordCreateRequest, RecordCreateResponse, RecordListDayResponse, RecordListGoalResponse, RecordListResponse, RecordResponse
 from app.services.goal import calculate_is_active_on_date
 from app.utils.date import to_kst
-
+from google import genai
 
 async def create_record(user_id: str, request: RecordCreateRequest) -> RecordCreateResponse:
     # 1. 목표 존재 여부 확인
@@ -19,8 +20,8 @@ async def create_record(user_id: str, request: RecordCreateRequest) -> RecordCre
             detail="설정된 목표가 없어요."
         )
 
-    # 2. 오늘 기록 중복 확인
-    today = date.today()
+    # 2. 오늘 기록 중복 확인 (KST 기준)
+    today = to_kst(datetime.now(timezone.utc)).date()  # ← 수정
     existing_record = await Record.find_one(
         Record.user_id == PydanticObjectId(user_id),
         Record.goal_id == PydanticObjectId(request.goalId),
@@ -32,21 +33,21 @@ async def create_record(user_id: str, request: RecordCreateRequest) -> RecordCre
             detail="오늘 기록이 이미 존재해요."
         )
 
-    # 3. AI 분류 (status가 fail이면)
+    # 3. AI 분류
     reason_category = None
     if request.status == "fail" and request.reasonText:
         reason_category = await classify_reason(request.reasonText)
 
     # 4. day_of_week, hour_logged 자동 계산
     now_kst = to_kst(datetime.now(timezone.utc))
-    day_of_week = now_kst.weekday()   # KST 기준 요일
-    hour_logged = now_kst.hour        # KST 기준 시간
+    day_of_week = now_kst.weekday()
+    hour_logged = now_kst.hour
 
     # 5. 기록 저장
     new_record = Record(
         user_id=PydanticObjectId(user_id),
         goal_id=PydanticObjectId(request.goalId),
-        record_date=today,
+        record_date=today,   # ← KST 기준 날짜
         status=request.status,
         reason_text=request.reasonText,
         reason_category=reason_category,
@@ -66,9 +67,23 @@ async def create_record(user_id: str, request: RecordCreateRequest) -> RecordCre
     )
 
 
+client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+CLASSIFY_MODEL = "gemini-2.5-flash"
+
 async def classify_reason(reason_text: str) -> str:
-    # TODO제미나이 API 호출 (나중에 구현)
-    return "미분류"
+    try:
+        response = client.models.generate_content(
+            model=CLASSIFY_MODEL,
+            contents=f"""다음 실패 이유를 아래 카테고리 중 하나로 분류해줘.
+                        카테고리: 피로, 시간부족, 동기저하, 건강, 날씨, 기타
+
+                        카테고리 이름만 답해줘. 다른 말은 하지 마.
+
+                        실패 이유: {reason_text}"""
+        )
+        return response.text.strip()
+    except Exception as e:
+        return "기타"
 
 
 async def get_records(user_id: str, record_date: date) -> RecordListResponse:

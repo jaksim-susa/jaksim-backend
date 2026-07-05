@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     KAKAO_CLIENT_SECRET: str = ""
     IS_LOCAL: bool = True
     REDIRECT_URI: str = ""
+    GOOGLE_API_KEY: str
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
