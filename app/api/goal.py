@@ -9,7 +9,7 @@ from app.services.goal import create_goal, get_goals
 router = APIRouter()
 
 
-@router.post("/", response_model=GoalCreateResponse)
+@router.post("", response_model=GoalCreateResponse)
 async def create_goal_route(
     request: GoalCreateRequest,
     current_user: User = Depends(get_current_user)

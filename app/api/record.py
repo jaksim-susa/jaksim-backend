@@ -9,7 +9,7 @@ from app.models.user import User
 router = APIRouter()
 
 
-@router.post("/", response_model=RecordCreateResponse)
+@router.post("", response_model=RecordCreateResponse)
 async def create_record_route(
     request: RecordCreateRequest,
     current_user: User = Depends(get_current_user)
@@ -17,7 +17,7 @@ async def create_record_route(
     return await create_record(str(current_user.id), request)
 
 
-@router.get("/", response_model=RecordAllListResponse)
+@router.get("", response_model=RecordAllListResponse)
 async def get_all_records_route(
     current_user: User = Depends(get_current_user)
 ):
