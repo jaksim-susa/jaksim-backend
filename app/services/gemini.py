@@ -70,7 +70,7 @@ async def get_briefing(user_id: str) -> str:
         user_id=PydanticObjectId(user_id),
         type="briefing",
         content=content,
-        date=today
+        date=today_kst
     ).insert()
 
     return response.text.strip()
@@ -150,7 +150,7 @@ async def get_insight(user_id: str) -> str:
         user_id=PydanticObjectId(user_id),
         type="insight",
         content=content,
-        date=today
+        date=today_kst
     ).insert()
 
     return response.text.strip()
