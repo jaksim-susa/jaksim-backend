@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from app.core.config import settings
+from app.models.ai_insight import AiInsight
 from app.models.user import User
 from app.models.goal import Goal
 from app.models.record import Record
@@ -14,6 +15,7 @@ async def init_db():
             User,
             Goal,
             Record,
-            Diary
+            Diary,
+            AiInsight
             ]
     )
