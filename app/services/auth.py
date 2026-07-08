@@ -2,6 +2,7 @@
 from fastapi import Request, Response
 from app.core.security import create_access_token, create_refresh_token
 from app.models.user import User
+from app.schemas.base import MessageResponse
 from app.services.kakao import get_kakao_token, get_kakao_user
 from app.core.logger import logger
 from app.core.config import settings
@@ -55,8 +56,7 @@ async def kakao_login(code: str, response: Response) -> dict:
     }
 
 
-async def logout(response: Response, request: Request) -> dict:
-    # TODO accessToken 검증 → 유효하지 않으면 401 반환 로직 추가
+async def logout(response: Response, request: Request) -> MessageResponse:
     refresh_token = request.cookies.get("refreshToken")
 
     if refresh_token:
@@ -70,4 +70,4 @@ async def logout(response: Response, request: Request) -> dict:
         secure=not settings.IS_LOCAL,
         samesite="lax" if settings.IS_LOCAL else "none"
     )
-    return {"message": "로그아웃 되었습니다."}
+    return MessageResponse(message="로그아웃 되었어요.")
