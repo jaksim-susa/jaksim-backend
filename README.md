@@ -6,7 +6,7 @@ AI가 목표 실패 원인을 분석해 탐정처럼 브리핑해주는 목표 �
 
 - 🌐 서비스 바로가기: [[프론트엔드 배포 URL](https://jakshim-frontend-one.vercel.app/)]
 - 📄 API 문서 (Swagger): [[백엔드 URL](https://app-gowest-dev.azurewebsites.net/docs)]
-- 💻 Frontend 레포: [\[링크\]](https://github.com/jakshim-susa/jakshim-frontend)
+- 💻 Frontend 레포: [\[링크\]](https://github.com/jaksim-susa/jaksim-frontend)
 
 ## 🛠️ 기술 스택
 
