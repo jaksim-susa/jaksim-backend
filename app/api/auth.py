@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request, Response, Depends
+from app.core.security import get_current_user
+from app.models.user import User
 from app.schemas.base import MessageResponse
 from app.schemas.user import KakaoLoginRequest, Token
 from app.services.auth import kakao_login, logout
@@ -11,5 +13,9 @@ async def kakao_login_route(request: KakaoLoginRequest, response: Response):
 
 
 @router.post("/logout", response_model=MessageResponse)
-async def logout_route(response: Response, request: Request):
+async def logout_route(
+    request: Request,
+    response: Response,
+    _: User = Depends(get_current_user)
+):
     return await logout(response, request)
