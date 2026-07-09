@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.models.diary import Diary
 from app.models.record import Record
 from app.models.goal import Goal
+from app.schemas.base import MessageResponse
 from app.schemas.diary import DiaryResponse
 from app.schemas.record import RecordAllListResponse, RecordCreateRequest, RecordCreateResponse, RecordListDayResponse, RecordListGoalResponse, RecordListResponse, RecordResponse, RecordUpdateRequest, RecordUpdateResponse
 from app.services.goal import calculate_is_active_on_date
@@ -234,3 +235,23 @@ async def update_record(user_id: str, record_id: str, request: RecordUpdateReque
         recordDate=record.record_date,
         createdAt=to_kst(record.created_at),
     )
+
+
+async def delete_record(user_id: str, record_id: str) -> MessageResponse:
+    record = await Record.get(PydanticObjectId(record_id))
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="기록을 찾을 수 없어요."
+        )
+
+    if str(record.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 기록만 삭제할 수 있어요."
+        )
+
+    await record.delete()
+
+    # TODO: 캐릭터 기능 추가 시 streak, 레벨 재계산 필요
+    return MessageResponse(message="기록이 삭제되었어요.")
