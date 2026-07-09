@@ -5,8 +5,9 @@ from app.core.config import settings
 from app.models.diary import Diary
 from app.models.record import Record
 from app.models.goal import Goal
+from app.schemas.base import MessageResponse
 from app.schemas.diary import DiaryResponse
-from app.schemas.record import RecordAllListResponse, RecordCreateRequest, RecordCreateResponse, RecordListDayResponse, RecordListGoalResponse, RecordListResponse, RecordResponse
+from app.schemas.record import RecordAllListResponse, RecordCreateRequest, RecordCreateResponse, RecordListDayResponse, RecordListGoalResponse, RecordListResponse, RecordResponse, RecordUpdateRequest, RecordUpdateResponse
 from app.services.goal import calculate_is_active_on_date
 from app.utils.date import to_kst
 from google import genai
@@ -189,3 +190,68 @@ async def get_all_records(user_id: str) -> RecordAllListResponse:
         )
 
     return RecordAllListResponse(records=result)
+
+
+async def update_record(user_id: str, record_id: str, request: RecordUpdateRequest) -> RecordUpdateResponse:
+    # 1. 기록 존재 여부 확인
+    record = await Record.get(PydanticObjectId(record_id))
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="기록을 찾을 수 없어요."
+        )
+
+    # 2. 본인 기록인지 확인
+    if str(record.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 기록만 수정할 수 있어요."
+        )
+
+    # 3. status에 따라 처리
+    if request.status == "success":
+        reason_text = None
+        reason_category = None
+    else:
+        reason_text = request.reasonText
+        reason_category = await classify_reason(request.reasonText) if request.reasonText else None
+
+    # 4. 기록 업데이트
+    await record.update({
+        "$set": {
+            "status": request.status,
+            "reason_text": reason_text,
+            "reason_category": reason_category,
+            "updated_at": datetime.now(timezone.utc)
+        }
+    })
+
+    return RecordUpdateResponse(
+        recordId=str(record.id),
+        goalId=str(record.goal_id),
+        status=request.status,
+        reasonText=reason_text,
+        reasonCategory=reason_category,
+        recordDate=record.record_date,
+        createdAt=to_kst(record.created_at),
+    )
+
+
+async def delete_record(user_id: str, record_id: str) -> MessageResponse:
+    record = await Record.get(PydanticObjectId(record_id))
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="기록을 찾을 수 없어요."
+        )
+
+    if str(record.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 기록만 삭제할 수 있어요."
+        )
+
+    await record.delete()
+
+    # TODO: 캐릭터 기능 추가 시 streak, 레벨 재계산 필요
+    return MessageResponse(message="기록이 삭제되었어요.")
