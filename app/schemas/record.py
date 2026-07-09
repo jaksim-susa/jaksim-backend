@@ -54,3 +54,18 @@ class RecordListDayResponse(BaseModel):
 
 class RecordAllListResponse(BaseModel):
     records: List[RecordListDayResponse]
+
+
+class RecordUpdateRequest(BaseModel):
+    status: str
+    reasonText: Optional[str] = None
+
+
+class RecordUpdateResponse(BaseModel):
+    recordId: str
+    goalId: str
+    status: str
+    reasonText: Optional[str] = None
+    reasonCategory: Optional[str] = None
+    recordDate: date
+    createdAt: datetime
