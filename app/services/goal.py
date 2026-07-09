@@ -1,7 +1,10 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from beanie import PydanticObjectId
+from fastapi import HTTPException, status
 from app.models.goal import Goal
-from app.schemas.goal import GoalCreateRequest, GoalCreateResponse, GoalListResponse, GoalResponse
+from app.models.record import Record
+from app.schemas.base import MessageResponse
+from app.schemas.goal import GoalCreateRequest, GoalCreateResponse, GoalListResponse, GoalResponse, GoalUpdateRequest
 from app.utils.date import to_kst
 
 
@@ -64,3 +67,66 @@ async def get_goals(user_id: str) -> GoalListResponse:
             for goal in goals
         ]
     )
+
+
+async def update_goal(user_id: str, goal_id: str, request: GoalUpdateRequest) -> GoalResponse:
+    # 1. 목표 존재 여부 확인
+    goal = await Goal.get(PydanticObjectId(goal_id))
+    if not goal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="목표를 찾을 수 없어요."
+        )
+
+    # 2. 본인 목표인지 확인
+    if str(goal.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 목표만 수정할 수 있어요."
+        )
+
+    # 3. 목표 업데이트
+    await goal.update({
+        "$set": {
+            "title": request.title,
+            "start_date": request.startDate,
+            "end_date": request.endDate,
+            "updated_at": datetime.now(timezone.utc)
+        }
+    })
+
+    return GoalResponse(
+        goalId=str(goal.id),
+        title=request.title,
+        startDate=request.startDate,
+        endDate=request.endDate,
+        isActive=calculate_is_active(goal),
+        createdAt=to_kst(goal.created_at),
+    )
+
+
+async def delete_goal(user_id: str, goal_id: str) -> MessageResponse:
+    # 1. 목표 존재 여부 확인
+    goal = await Goal.get(PydanticObjectId(goal_id))
+    if not goal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="목표를 찾을 수 없어요."
+        )
+
+    # 2. 본인 목표인지 확인
+    if str(goal.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 목표만 삭제할 수 있어요."
+        )
+
+    # 3. 관련 기록 전체 삭제
+    await Record.find(
+        Record.goal_id == PydanticObjectId(goal_id)
+    ).delete()
+
+    # 4. 목표 삭제
+    await goal.delete()
+
+    return MessageResponse(message="목표가 삭제되었어요.")

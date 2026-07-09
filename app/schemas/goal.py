@@ -31,3 +31,10 @@ class GoalResponse(BaseModel):
 
 class GoalListResponse(BaseModel):
     goals: List[GoalResponse]
+
+
+# 목표 수정 Request
+class GoalUpdateRequest(BaseModel):
+    title: str
+    startDate: Optional[date] = None
+    endDate: Optional[date] = None
