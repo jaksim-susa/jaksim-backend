@@ -1,9 +1,9 @@
 
 from beanie import PydanticObjectId
 from fastapi import HTTPException, Request, Response, status
-from app.core.security import create_access_token, create_refresh_token, verify_token
+from app.core.security import create_access_token, create_refresh_token, verify_token, pwd_context
 from app.models.user import User
-from app.schemas.auth import TokenRefreshResponse
+from app.schemas.auth import SignupRequest, TokenRefreshResponse
 from app.schemas.base import MessageResponse
 from app.services.kakao import get_kakao_token, get_kakao_user
 from app.core.logger import logger
@@ -120,3 +120,34 @@ async def refresh_token(request: Request, response: Response) -> TokenRefreshRes
     )
 
     return TokenRefreshResponse(accessToken=new_access_token)
+
+
+async def signup(request: SignupRequest, response: Response) -> MessageResponse:
+    # 1. 이메일 중복 확인
+    existing_email = await User.find_one(User.email == request.email)
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 사용 중인 이메일이에요."
+        )
+
+    # 2. 닉네임 중복 확인
+    existing_nickname = await User.find_one(User.nickname == request.nickname)
+    if existing_nickname:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 사용 중인 닉네임이에요."
+        )
+
+    # 3. 비밀번호 암호화
+    hashed_password = pwd_context.hash(request.password)
+
+    # 4. 유저 생성
+    new_user = User(
+        email=request.email,
+        password=hashed_password,
+        nickname=request.nickname
+    )
+    await new_user.insert()
+
+    return MessageResponse(message="회원가입이 완료되었어요.")

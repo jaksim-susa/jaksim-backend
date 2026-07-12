@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request, Response, Depends
 from app.core.security import get_current_user
 from app.models.user import User
-from app.schemas.auth import TokenRefreshResponse
+from app.schemas.auth import SignupRequest, TokenRefreshResponse
 from app.schemas.base import MessageResponse
-from app.schemas.user import KakaoLoginRequest, Token
-from app.services.auth import kakao_login, logout, refresh_token
+from app.schemas.auth import KakaoLoginRequest, Token
+from app.services.auth import kakao_login, logout, refresh_token, signup
 
 router = APIRouter()
 
@@ -28,3 +28,8 @@ async def refresh_token_route(
     response: Response
 ):
     return await refresh_token(request, response)
+
+
+@router.post("/signup", response_model=MessageResponse)
+async def signup_route(request: SignupRequest, response: Response):
+    return await signup(request, response)
