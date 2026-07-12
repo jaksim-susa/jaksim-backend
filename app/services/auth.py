@@ -1,7 +1,10 @@
 
-from fastapi import Request, Response
-from app.core.security import create_access_token, create_refresh_token
+from beanie import PydanticObjectId
+from fastapi import HTTPException, Request, Response, status
+from app.core.security import create_access_token, create_refresh_token, verify_token, pwd_context
+from app.models.goal import Goal
 from app.models.user import User
+from app.schemas.auth import LoginRequest, SignupRequest, Token, TokenRefreshResponse
 from app.schemas.base import MessageResponse
 from app.services.kakao import get_kakao_token, get_kakao_user
 from app.core.logger import logger
@@ -33,8 +36,8 @@ async def kakao_login(code: str, response: Response) -> dict:
 
     user_id = str(target_user.id)
 
-    access_token = create_access_token(data={"sub": user_id, "kakao_id": kakao_id})
-    refresh_token = create_refresh_token(data={"sub": user_id, "kakao_id": kakao_id})
+    access_token = create_access_token(data={"sub": user_id})
+    refresh_token = create_refresh_token(data={"sub": user_id })
 
     await target_user.set({User.refresh_token: refresh_token})
 
@@ -44,11 +47,13 @@ async def kakao_login(code: str, response: Response) -> dict:
         httponly=True,
         secure=not settings.IS_LOCAL,
         samesite="lax" if settings.IS_LOCAL else "none",
-        max_age=7 * 24 * 60 * 60  # 7일
+        max_age=7 * 24 * 60 * 60,  # 7일
+        path="/"
     )
 
     return {
         "accessToken": access_token,
+        "userId": user_id,
         "nickname": nickname,
         "theme": target_user.theme or "system",
         "isNewUser": not is_returning_user,
@@ -68,6 +73,131 @@ async def logout(response: Response, request: Request) -> MessageResponse:
         key="refreshToken",
         httponly=True,
         secure=not settings.IS_LOCAL,
-        samesite="lax" if settings.IS_LOCAL else "none"
+        samesite="lax" if settings.IS_LOCAL else "none",
+        path="/"
     )
     return MessageResponse(message="로그아웃 되었어요.")
+
+
+async def refresh_token(request: Request, response: Response) -> TokenRefreshResponse:
+    refresh_token = request.cookies.get("refreshToken")
+    
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 토큰이에요."
+        )
+
+    try:
+        payload = verify_token(refresh_token)
+        user_id = payload.get("sub")
+
+    except Exception as e:
+        logger.error(f"refreshToken 검증 실패: {e}") 
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 토큰이에요."
+        )
+
+    user = await User.get(PydanticObjectId(user_id))
+    
+    if not user or user.refresh_token != refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 토큰이에요."
+        )
+
+    new_access_token = create_access_token({"sub": user_id})
+    new_refresh_token = create_refresh_token({"sub": user_id})
+
+    await user.update({"$set": {"refresh_token": new_refresh_token}})
+
+    response.set_cookie(
+        key="refreshToken",
+        value=new_refresh_token,
+        httponly=True,
+        secure=not settings.IS_LOCAL,
+        samesite="lax" if settings.IS_LOCAL else "none",
+        path="/"
+    )
+
+    return TokenRefreshResponse(accessToken=new_access_token)
+
+
+async def signup(request: SignupRequest, response: Response) -> MessageResponse:
+    # 1. 이메일 중복 확인
+    existing_email = await User.find_one(User.email == request.email)
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 사용 중인 이메일이에요."
+        )
+
+    # 2. 닉네임 중복 확인
+    existing_nickname = await User.find_one(User.nickname == request.nickname)
+    if existing_nickname:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 사용 중인 닉네임이에요."
+        )
+
+    # 3. 비밀번호 암호화
+    hashed_password = pwd_context.hash(request.password)
+
+    # 4. 유저 생성
+    new_user = User(
+        email=request.email,
+        password=hashed_password,
+        nickname=request.nickname
+    )
+    await new_user.insert()
+
+    return MessageResponse(message="회원가입이 완료되었어요.")
+
+
+async def email_login(request: LoginRequest, response: Response) -> Token:
+    # 1. 이메일로 유저 조회
+    user = await User.find_one(User.email == request.email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="이메일 또는 비밀번호가 틀렸어요."
+        )
+
+    # 2. 비밀번호 검증
+    if not pwd_context.verify(request.password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="이메일 또는 비밀번호가 틀렸어요."
+        )
+
+    # 3. 토큰 발급
+    user_id = str(user.id)
+    access_token = create_access_token(data={"sub": user_id})
+    refresh_token = create_refresh_token(data={"sub": user_id})
+
+    # 4. DB에 refreshToken 저장
+    await user.update({"$set": {"refresh_token": refresh_token}})
+
+    # 5. 쿠키에 refreshToken 저장
+    response.set_cookie(
+        key="refreshToken",
+        value=refresh_token,
+        httponly=True,
+        secure=not settings.IS_LOCAL,
+        samesite="lax" if settings.IS_LOCAL else "none",
+        max_age=7 * 24 * 60 * 60,
+        path="/"
+    )
+
+    # 6. hasGoal 확인
+    goal_count = await Goal.find(Goal.user_id == user.id).count()
+
+    return Token(
+        accessToken=access_token,
+        userId=user_id,
+        nickname=user.nickname,
+        theme=user.theme or "system",
+        isNewUser=False,
+        hasGoal=goal_count > 0
+    )
