@@ -22,3 +22,8 @@ class SignupRequest(BaseModel):
     email: str
     password: str
     nickname: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
