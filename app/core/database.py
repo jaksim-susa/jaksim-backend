@@ -8,7 +8,7 @@ from app.models.record import Record
 from app.models.diary import Diary
 
 async def init_db():
-    client = AsyncIOMotorClient(settings.DOCUMENT_DB_CONNECTION_STRING)
+    client = AsyncIOMotorClient(settings.DOCUMENT_DB_CONNECTION_STR)
     await init_beanie(
         database=client[settings.DOCUMENT_DATABASE_NAME],
         document_models=[
